@@ -4,16 +4,21 @@ import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
 import pickle
 from kaggle.api.kaggle_api_extended import KaggleApi
+from skimage.feature import local_binary_pattern
+
 
 # Authenticate and setup Kaggle API
 api = KaggleApi()
 api.authenticate()
 
-# Download the dataset from Kaggle
-api.dataset_download_files('frabbisw/facial-age', path='ML/uploads/', unzip=True)
+# # Download the dataset from Kaggle
+# api.dataset_download_files('frabbisw/facial-age', path='ML/uploads/', unzip=True)
 
 # Define path to the 'age' folder that contains the 99 subfolders
-dataset_path = 'ML/uploads/age/'
+dataset_path = 'D:/BE/BE/ML/uploads/face_age/'
+
+# Define path to your uploaded image
+uploaded_image_path = r'D:\Be\BE\ML\uploads\images\Febiola.PNG'  # Update this path
 
 # Function to extract LBP features from images
 def extract_lbp_features(image_path):
@@ -25,8 +30,8 @@ def extract_lbp_features(image_path):
     radius = 1  # Radius for LBP
     n_points = 8 * radius  # Number of circular points
 
-    # Compute LBP
-    lbp = cv2.localBinaryPattern(image, n_points, radius, method='uniform')
+    # Compute LBP using skimage
+    lbp = local_binary_pattern(image, n_points, radius, method='uniform')
 
     # Compute the histogram of LBP values
     lbp_hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, 59), range=(0, 58))

@@ -4,16 +4,18 @@ import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
 import pickle
 from kaggle.api.kaggle_api_extended import KaggleApi
+from skimage.feature import local_binary_pattern
+
 
 # Authenticate and setup Kaggle API
 api = KaggleApi()
 api.authenticate()
 
-# Download the dataset from Kaggle
-api.dataset_download_files('frabbisw/facial-age', path='ML/uploads/', unzip=True)
-
 # Define path to the 'age' folder that contains the 99 subfolders
-dataset_path = 'ML/uploads/age/'
+dataset_path = (r'D:/BE/BE/ML/uploads/face_age/')
+
+# Define path to your uploaded image
+uploaded_image_path = r'D:\Be\BE\ML\uploads\images\Febiola.PNG'  # Update this path
 
 # Function to extract LBP features from images
 def extract_lbp_features(image_path):
@@ -25,8 +27,8 @@ def extract_lbp_features(image_path):
     radius = 1  # Radius for LBP
     n_points = 8 * radius  # Number of circular points
 
-    # Compute LBP
-    lbp = cv2.localBinaryPattern(image, n_points, radius, method='uniform')
+    # Compute LBP using skimage
+    lbp = local_binary_pattern(image, n_points, radius, method='uniform')
 
     # Compute the histogram of LBP values
     lbp_hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, 59), range=(0, 58))
@@ -36,7 +38,7 @@ def extract_lbp_features(image_path):
     lbp_hist /= lbp_hist.sum()
     return lbp_hist
 
-# Collect images and labels
+# Collect images and labels for training
 X_train = []
 y_train = []
 
@@ -67,3 +69,14 @@ with open('ML/models/knn_model.pkl', 'wb') as f:
     pickle.dump(knn, f)
 
 print("Model trained and saved successfully!")
+
+# Now, extract features from your uploaded image
+try:
+    uploaded_image_features = extract_lbp_features(uploaded_image_path)
+    
+    # Use the trained model to predict the age group of the uploaded image
+    predicted_age_group = knn.predict([uploaded_image_features])
+    print(f"The predicted age group for the uploaded image is: {predicted_age_group[0]}")
+    
+except Exception as e:
+    print(f"Error processing the uploaded image: {e}")
