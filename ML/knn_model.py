@@ -1,15 +1,15 @@
 import os
-import pickle
-import numpy as np
 import cv2
+import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
+import pickle
 from kaggle.api.kaggle_api_extended import KaggleApi
 
-# Authenticate and download the Kaggle dataset
+# Authenticate and setup Kaggle API
 api = KaggleApi()
 api.authenticate()
 
-# Download the dataset and unzip it
+# Download the dataset from Kaggle
 api.dataset_download_files('frabbisw/facial-age', path='ML/uploads/', unzip=True)
 
 # Define path to the 'age' folder that contains the 99 subfolders

@@ -1,15 +1,15 @@
 import os
-import pickle
-import numpy as np
 import cv2
+import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
+import pickle
 from kaggle.api.kaggle_api_extended import KaggleApi
 
-# Authenticate and download the Kaggle dataset
+# Authenticate and setup Kaggle API
 api = KaggleApi()
 api.authenticate()
 
-# Download the dataset and unzip it
+# Download the dataset from Kaggle
 api.dataset_download_files('frabbisw/facial-age', path='ML/uploads/', unzip=True)
 
 # Define path to the 'age' folder that contains the 99 subfolders
@@ -67,3 +67,28 @@ with open('ML/models/knn_model.pkl', 'wb') as f:
     pickle.dump(knn, f)
 
 print("Model trained and saved successfully!")
+
+# Function to predict the age group of a new image
+def predict_age(image_path, model_path='ML/models/knn_model.pkl'):
+    """Predict the age group using the pre-trained KNN model."""
+    try:
+        lbp_features = extract_lbp_features(image_path)
+    except Exception as e:
+        raise ValueError(f"Error extracting LBP features: {e}")
+
+    # Load the pre-trained KNN model
+    with open(model_path, 'rb') as f:
+        knn_model = pickle.load(f)
+
+    # Predict the age group
+    predicted_age = knn_model.predict([lbp_features])
+    return predicted_age[0]
+
+# Path to the custom image
+image_path = r'D:\Be\BE\ML\uploads\Febiola lidya Sianturi - 3x4.PNG'  # Your image path
+
+try:
+    predicted_age = predict_age(image_path)
+    print(f"Predicted age group: {predicted_age}")
+except Exception as e:
+    print(f"Error: {e}")
