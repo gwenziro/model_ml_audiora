@@ -1,99 +1,105 @@
-import os
-import cv2
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import numpy as np
-from sklearn.neighbors import KNeighborsClassifier
 import pickle
-from kaggle.api.kaggle_api_extended import KaggleApi
-from skimage.feature import local_binary_pattern
+import cv2
+from lbp_utils import extract_lbp_features
+import os
+from sklearn.neighbors import KNeighborsClassifier
 
+def load_database(database_path):
+    images = []
+    labels = []
+    # Loop through each folder in the database path
+    for folder_name in os.listdir(database_path):
+        folder_path = os.path.join(database_path, folder_name)
+        
+        # Ensure it's a directory and the folder name is a valid age label
+        if os.path.isdir(folder_path) and folder_name.isdigit():
+            label = int(folder_name)  # Folder name represents the age (age label)
+            # Loop through each image inside the folder
+            for image_name in os.listdir(folder_path):
+                image_path = os.path.join(folder_path, image_name)
+                # Check if the image file is valid (jpg, jpeg, png)
+                if image_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    image = cv2.imread(image_path)
+                    # Check if the image was loaded successfully
+                    if image is not None:
+                        images.append(image)
+                        labels.append(label)
+    return images, labels
 
-# Authenticate and setup Kaggle API
-api = KaggleApi()
-api.authenticate()
+def train_knn_model(database_path):
+    images, ages = load_database(database_path)
+    
+    features = []
+    for image in images:
+        if image is not None:
+            # Extract LBP features from the image
+            feature_vector, _ = extract_lbp_features(image, size=(8, 8))
+            features.append(feature_vector)
+    
+    # Convert the features and labels to numpy arrays
+    features = np.array(features)
+    ages = np.array(ages)
 
-# # Download the dataset from Kaggle
-# api.dataset_download_files('frabbisw/facial-age', path='ML/uploads/', unzip=True)
+    print(f"Number of features extracted for training: {features.shape[1]}")  # Check number of features
+    
+    # Train the KNN model
+    knn_model = KNeighborsClassifier(n_neighbors=3)
+    knn_model.fit(features, ages)
 
-# Define path to the 'age' folder that contains the 99 subfolders
-dataset_path = 'D:/BE/BE/ML/uploads/face_age/'
+    # Save the trained model to a file
+    with open('knn_model.pkl', 'wb') as model_file:
+        pickle.dump(knn_model, model_file)
 
-# Define path to your uploaded image
-uploaded_image_path = r'D:\Be\BE\ML\uploads\images\Febiola.PNG'  # Update this path
+    print("Model trained and saved.")
 
-# Function to extract LBP features from images
-def extract_lbp_features(image_path):
-    """Extract LBP features from an image."""
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if image is None:
-        raise ValueError(f"Error loading image from {image_path}")
+def predict_and_evaluate(database_path, image_path):
+    images, true_ages = load_database(database_path)
+    
+    # Extract features for all images in the dataset
+    features = []
+    for image in images:
+        if image is not None:
+            feature_vector, _ = extract_lbp_features(image, size=(8, 8))
+            features.append(feature_vector)
+    
+    features = np.array(features)
 
-    radius = 1  # Radius for LBP
-    n_points = 8 * radius  # Number of circular points
+    # Load the trained KNN model
+    with open('knn_model.pkl', 'rb') as model_file:
+        knn_model = pickle.load(model_file)
 
-    # Compute LBP using skimage
-    lbp = local_binary_pattern(image, n_points, radius, method='uniform')
+    # Predict age for each image
+    predicted_ages = knn_model.predict(features)
+    
+    # Bin the ages into groups for classification
+    age_bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99]
+    true_labels = np.digitize(true_ages, bins=age_bins) - 1  # Convert true ages into bin labels
+    predicted_labels = np.digitize(predicted_ages, bins=age_bins) - 1  # Convert predicted ages into bin labels
 
-    # Compute the histogram of LBP values
-    lbp_hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, 59), range=(0, 58))
+    # Calculate classification metrics
+    accuracy = accuracy_score(true_labels, predicted_labels)
+    precision = precision_score(true_labels, predicted_labels, average='weighted', zero_division=0)
+    recall = recall_score(true_labels, predicted_labels, average='weighted', zero_division=0)
+    f1 = f1_score(true_labels, predicted_labels, average='weighted', zero_division=0)
 
-    # Normalize the histogram
-    lbp_hist = lbp_hist.astype('float')
-    lbp_hist /= lbp_hist.sum()
-    return lbp_hist
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1 Score: {f1:.4f}")
 
-# Collect images and labels
-X_train = []
-y_train = []
+    # Optionally: Show the LBP feature vector and predicted age for a sample image
+    sample_image = cv2.imread(image_path)
+    feature_vector, _ = extract_lbp_features(sample_image, size=(8, 8))
+    print(f"Extracted Feature Vector: {feature_vector}")
+    predicted_age = knn_model.predict(feature_vector.reshape(1, -1))
+    print(f"Predicted Age: {predicted_age[0]}")
 
-# Iterate through all folders (age groups)
-for label in os.listdir(dataset_path):
-    age_folder = os.path.join(dataset_path, label)
-    if os.path.isdir(age_folder):
-        for image_name in os.listdir(age_folder):
-            image_path = os.path.join(age_folder, image_name)
-            if image_path.lower().endswith('.png'):
-                try:
-                    lbp_features = extract_lbp_features(image_path)
-                    X_train.append(lbp_features)
-                    y_train.append(int(label))  # Use the folder name as the label (age)
-                except Exception as e:
-                    print(f"Skipping {image_path} due to error: {e}")
+if __name__ == "__main__":
+    # Path to the image for prediction
+    database_path = r'D:/Be/BE/ML/uploads/face_age'  # Path to the dataset
+    image_path = r'D:/Be/BE/ML/uploads/images/Shamil.jpg'  # Path to the image you want to test
 
-# Convert to numpy arrays
-X_train = np.array(X_train)
-y_train = np.array(y_train)
-
-# Train the KNN model
-knn = KNeighborsClassifier(n_neighbors=3)
-knn.fit(X_train, y_train)
-
-# Save the trained model
-with open('ML/models/knn_model.pkl', 'wb') as f:
-    pickle.dump(knn, f)
-
-print("Model trained and saved successfully!")
-
-# Function to predict the age group of a new image
-def predict_age(image_path, model_path='ML/models/knn_model.pkl'):
-    """Predict the age group using the pre-trained KNN model."""
-    try:
-        lbp_features = extract_lbp_features(image_path)
-    except Exception as e:
-        raise ValueError(f"Error extracting LBP features: {e}")
-
-    # Load the pre-trained KNN model
-    with open(model_path, 'rb') as f:
-        knn_model = pickle.load(f)
-
-    # Predict the age group
-    predicted_age = knn_model.predict([lbp_features])
-    return predicted_age[0]
-
-# Path to the custom image
-image_path = r'D:\Be\BE\ML\uploads\Febiola lidya Sianturi - 3x4.PNG'  # Your image path
-
-try:
-    predicted_age = predict_age(image_path)
-    print(f"Predicted age group: {predicted_age}")
-except Exception as e:
-    print(f"Error: {e}")
+    # Evaluate model
+    predict_and_evaluate(database_path, image_path)
