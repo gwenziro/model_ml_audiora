@@ -34,6 +34,8 @@
     
 #     return lbp_hist, resized_image
 
+# lbp_utils.py
+
 import cv2
 import numpy as np
 from skimage.feature import local_binary_pattern
@@ -70,7 +72,10 @@ def extract_lbp_features(image):
     combined_features = np.concatenate((lbp_hist, hog_features))
     
     # Optional: Reduce dimensionality with PCA (if necessary)
-    pca = PCA(n_components=50)
-    combined_features_reduced = pca.fit_transform(combined_features.reshape(1, -1))
-
-    return combined_features_reduced
+    if combined_features.shape[0] > 1:  # Only apply PCA if there are enough features
+        n_components = min(50, combined_features.shape[0])  # Make sure n_components is not larger than the number of features
+        pca = PCA(n_components=n_components)
+        combined_features_reduced = pca.fit_transform(combined_features.reshape(1, -1))
+        return combined_features_reduced.flatten(), lbp_hist  # Return both reduced features and original LBP values
+    else:
+        return combined_features, lbp_hist  # Return unmodified features and original LBP values
