@@ -36,46 +36,33 @@
 
 # lbp_utils.py
 
-import cv2
-import numpy as np
-from skimage.feature import local_binary_pattern
-from skimage.feature import hog
-from sklearn.decomposition import PCA
 
-# LBP parameters
-radius = 1
-n_points = 8 * radius
+
+
+import numpy as np
+import cv2
 
 def extract_lbp_features(image):
     """
-    Extract LBP (Local Binary Pattern) features from an image and return the normalized histogram.
-    Additionally, we include HOG features for better prediction.
+    Extract LBP (Local Binary Pattern) features from an image.
     """
-    # Convert image to grayscale if it is not already
-    if len(image.shape) > 2:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Resize the image to reduce feature dimensions
+    image_resized = cv2.resize(image, (100, 100), interpolation=cv2.INTER_AREA)
 
-    # Compute LBP (Local Binary Pattern) for the image
-    lbp = local_binary_pattern(image, n_points, radius, method='uniform')
-    
-    # Calculate the histogram of the LBP image
-    lbp_hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, n_points + 3), range=(0, n_points + 2))
-    
-    # Normalize the histogram
-    lbp_hist = lbp_hist.astype(float)
-    lbp_hist /= (lbp_hist.sum() + 1e-6)  # To avoid division by zero
+    # Convert to grayscale
+    gray_image = cv2.cvtColor(image_resized, cv2.COLOR_BGR2GRAY)
 
-    # Extract HOG features (Histogram of Oriented Gradients)
-    hog_features = hog(image, block_norm='L2-Hys', pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=False)
-    
-    # Combine LBP and HOG features
-    combined_features = np.concatenate((lbp_hist, hog_features))
-    
-    # Optional: Reduce dimensionality with PCA (if necessary)
-    if combined_features.shape[0] > 1:  # Only apply PCA if there are enough features
-        n_components = min(50, combined_features.shape[0])  # Make sure n_components is not larger than the number of features
-        pca = PCA(n_components=n_components)
-        combined_features_reduced = pca.fit_transform(combined_features.reshape(1, -1))
-        return combined_features_reduced.flatten(), lbp_hist  # Return both reduced features and original LBP values
-    else:
-        return combined_features, lbp_hist  # Return unmodified features and original LBP values
+    # Extract LBP features
+    lbp_image = np.zeros_like(gray_image, dtype=np.uint8)
+    for i in range(1, gray_image.shape[0] - 1):
+        for j in range(1, gray_image.shape[1] - 1):
+            center = gray_image[i, j]
+            binary_string = ''.join(['1' if gray_image[i + x, j + y] >= center else '0'
+                                     for x, y in [(-1, -1), (-1, 0), (-1, 1), (0, 1),
+                                                  (1, 1), (1, 0), (1, -1), (0, -1)]])
+            lbp_image[i, j] = int(binary_string, 2)
+
+    # Flatten the LBP image to a feature vector
+    lbp_features = lbp_image.flatten()
+
+    return lbp_features, lbp_image

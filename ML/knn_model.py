@@ -35,61 +35,56 @@
 #     train_knn_model(database_path)
 
 # knn_model.py
-import cv2
-import numpy as np
+
+
 import os
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import train_test_split
+import numpy as np
+import cv2
+from sklearn.decomposition import IncrementalPCA
 from lbp_utils import extract_lbp_features
-from joblib import dump
+
+# Label mapping
+label_mapping = {
+    '1-10 anak': 0,
+    '11 - 20 remaja': 1,
+    '21-30 transisi': 2,
+    '31-40 masa matang': 3,
+    '41-50 dewasa': 4,
+    '51-60 usia pertengahan': 5,
+    '61-70 tua': 6,
+    '71-80 lanjut usia': 7,
+    '81-90 lanjut usia tua': 8
+}
 
 def prepare_data(data_dir):
-    images = []
+    """
+    Load the dataset, extract features, and apply PCA for dimensionality reduction.
+    """
+    features = []
     labels = []
 
-    # Traverse the dataset directory
     for label_dir in os.listdir(data_dir):
         label_path = os.path.join(data_dir, label_dir)
-        
+
         if os.path.isdir(label_path):
-            label = int(label_dir)  # Age group as the label
-            
-            for filename in os.listdir(label_path):
-                image_path = os.path.join(label_path, filename)
+            label = label_mapping.get(label_dir, -1)
+            if label == -1:
+                print(f"Warning: Unmapped label directory: {label_dir}")
+                continue
+            for image_file in os.listdir(label_path):
+                image_path = os.path.join(label_path, image_file)
+
                 image = cv2.imread(image_path)
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Convert to grayscale
-                image = cv2.resize(image, (64, 64))  # Resize to a consistent size
-                
-                # Extract LBP features
-                features, lbp_values = extract_lbp_features(image)
-                
-                images.append(features)
-                labels.append(label)
-                
-                # Show the LBP values for each image during training
-                print(f"LBP values for {filename}: {lbp_values}")
-    
-    return np.array(images), np.array(labels)
+                if image is not None:
+                    feature, _ = extract_lbp_features(image)
+                    features.append(feature)
+                    labels.append(label)
 
-def train_knn_model(data_dir, k=5):
-    # Prepare data
-    X, y = prepare_data(data_dir)
-    
-    # Split data into train and test
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # Initialize KNN classifier with k and Manhattan distance
-    knn = KNeighborsClassifier(n_neighbors=k, metric='manhattan')
-    
-    # Train the model
-    knn.fit(X_train, y_train)
-    
-    # Evaluate on test set and display accuracy
-    accuracy = knn.score(X_test, y_test)
-    print(f"Model accuracy: {accuracy * 100:.2f}%")
-    
-    # Save the trained model to a file
-    dump(knn, 'knn_model.joblib')
+    features = np.array(features)
+    labels = np.array(labels)
 
-# Train the model
-train_knn_model(r'D:\Be\BE\ML\uploads\age')  # Replace with your actual dataset path
+    # Apply PCA for dimensionality reduction
+    ipca = IncrementalPCA(n_components=100)
+    X_reduced = ipca.fit_transform(features)
+
+    return X_reduced, labels, ipca
