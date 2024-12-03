@@ -1,27 +1,41 @@
-import numpy as np
-from skimage.feature import local_binary_pattern
 import cv2
+import numpy as np
 
-def extract_lbp_features(image, size=(8, 8)):
+def detect_face(image):
     """
-    Extract Local Binary Pattern (LBP) features from the given image (face region).
-    Parameters:
-        - image: Grayscale image of the face region.
-        - size: Desired size of the output feature vector.
-    Returns:
-        - feature_vector: Flattened LBP feature vector.
-        - lbp_image: LBP image visualization.
+    Detect a face in the image using OpenCV's Haar Cascade.
     """
-    radius = 2  # Increased radius
-    n_points = 8 * radius  # Number of circularly symmetric neighbor points
-    method = 'uniform'  # LBP method
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    
+    if len(faces) == 0:
+        return None  # No face detected
+    # Return the first face found
+    x, y, w, h = faces[0]
+    return image[y:y+h, x:x+w]
 
-    # Compute the LBP image
-    lbp = local_binary_pattern(image, n_points, radius, method=method)
+def extract_lbp_features(image):
+    """
+    Extract LBP features from a grayscale image.
+    """
+    lbp_image = np.zeros_like(image, dtype=np.uint8)
+    for i in range(1, image.shape[0] - 1):
+        for j in range(1, image.shape[1] - 1):
+            center = image[i, j]
+            binary_string = ''.join(['1' if image[i + x, j + y] >= center else '0'
+                                     for x, y in [(-1, -1), (-1, 0), (-1, 1), (0, 1),
+                                                  (1, 1), (1, 0), (1, -1), (0, -1)]])
+            lbp_image[i, j] = int(binary_string, 2)
+    return lbp_image.flatten()
 
-    # Normalize and resize LBP to match the desired size
-    lbp_resized = cv2.resize(lbp.astype(np.float32), size)
-    lbp_resized = (lbp_resized - lbp_resized.min()) / (lbp_resized.max() - lbp_resized.min())
-    feature_vector = lbp_resized.flatten()
-
-    return feature_vector, lbp
+def extract_face_and_lbp_features(image):
+    """
+    Detect a face and extract its LBP features.
+    """
+    face = detect_face(image)
+    if face is None:
+        return None  # No face detected
+    gray_face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+    gray_face_resized = cv2.resize(gray_face, (100, 100), interpolation=cv2.INTER_AREA)
+    return extract_lbp_features(gray_face_resized)
