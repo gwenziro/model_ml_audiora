@@ -1,47 +1,41 @@
-import numpy as np
-from skimage.feature import local_binary_pattern, hog
 import cv2
+import numpy as np
+from skimage.feature import hog
 
-def sharpen_image(image):
+def extract_lbp_hog_features(image):
     """
-    Sharpen the given image using a sharpening kernel.
+    Extract combined LBP and HOG features from an image.
     """
-    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
-    return cv2.filter2D(image, -1, kernel)
+    # Resize image to a fixed size (e.g., 100x100)
+    fixed_size = (100, 100)
+    image_resized = cv2.resize(image, fixed_size, interpolation=cv2.INTER_AREA)
 
-def extract_lbp_features(image, size=(8, 8)):
-    """
-    Extract Local Binary Pattern (LBP) features.
-    """
-    radius = 2
-    n_points = 8 * radius
-    method = 'uniform'
-    
-    lbp = local_binary_pattern(image, n_points, radius, method=method)
-    lbp_resized = cv2.resize(lbp.astype(np.float32), size)
-    return lbp_resized.flatten()
+    # Convert to grayscale
+    gray_image = cv2.cvtColor(image_resized, cv2.COLOR_BGR2GRAY)
 
-def extract_hog_features(image):
-    """
-    Extract Histogram of Oriented Gradients (HOG) features.
-    """
-    features, _ = hog(image, orientations=9, pixels_per_cell=(8, 8),
-                      cells_per_block=(2, 2), visualize=True, channel_axis=None)
-    return features
+    # Extract LBP features
+    lbp_image = np.zeros_like(gray_image, dtype=np.uint8)
+    for i in range(1, gray_image.shape[0] - 1):
+        for j in range(1, gray_image.shape[1] - 1):
+            center = gray_image[i, j]
+            binary_string = ''.join(['1' if gray_image[i + x, j + y] >= center else '0'
+                                     for x, y in [(-1, -1), (-1, 0), (-1, 1), (0, 1),
+                                                  (1, 1), (1, 0), (1, -1), (0, -1)]])
+            lbp_image[i, j] = int(binary_string, 2)
 
-def extract_combined_features(image, lbp_size=(8, 8)):
-    """
-    Combine LBP and HOG features for robust texture representation.
-    """
-    # Ensure grayscale
-    if len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    image = sharpen_image(image)
-    
-    # Extract LBP and HOG features
-    lbp_features = extract_lbp_features(image, size=lbp_size)
-    hog_features = extract_hog_features(image)
-    
-    # Combine features
-    return np.concatenate([lbp_features, hog_features])
+    lbp_features = lbp_image.flatten()
+
+    # Extract HOG features
+    hog_features = hog(
+        gray_image,
+        orientations=9,
+        pixels_per_cell=(8, 8),
+        cells_per_block=(2, 2),
+        block_norm='L2-Hys',
+        feature_vector=True
+    )
+
+    # Combine LBP and HOG features
+    combined_features = np.concatenate((lbp_features, hog_features))
+
+    return combined_features
