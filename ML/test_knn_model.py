@@ -33,7 +33,9 @@ def test_knn_model(test_image_path, data_dir):
         print("Error: Test image not found.")
         return
 
+    # Extract LBP+HOG features for the test image
     test_feature = extract_lbp_hog_features(test_image)
+    # Apply the PCA transformation for the test image
     test_feature = pca_model.transform([test_feature])
 
     distances, indices = knn.kneighbors(test_feature, n_neighbors=3)
@@ -43,13 +45,13 @@ def test_knn_model(test_image_path, data_dir):
         label_name = [name for name, value in label_mapping.items() if value == label][0]
         top_matches.append((label_name, distances[0][i]))
 
-    # Display the test image with predicted label
-    display_test_image(test_image, top_matches[0][0])
-
-    # Print the top-3 matches
+    # Print the top-3 matches first
     print("\nTop-3 Matches:")
     for i, (label_name, distance) in enumerate(top_matches):
         print(f"Match {i + 1}: {label_name}, Distance: {distance:.2f}")
+
+    # Display the test image with predicted label
+    display_test_image(test_image, top_matches[0][0])
 
 def display_test_image(test_image, predicted_label):
     """
@@ -64,6 +66,6 @@ def display_test_image(test_image, predicted_label):
 
 # Example usage
 data_dir = 'D:/Be/BE/ML/uploads/age'  # Path to the dataset directory
-test_image_path = r'D:\Be\BE\ML\uploads\images\arka.jpg'  # Path to the test image
+test_image_path = r'D:\Be\BE\ML\uploads\images\jeno.jpg'  # Path to the test image
 
 test_knn_model(test_image_path, data_dir)
