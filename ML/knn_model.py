@@ -7,7 +7,7 @@ import cv2
 
 label_mapping = {
     '1-10 anak': 0,
-    '11 - 20 remaja': 1,
+    '11-20 remaja': 1,
     '21-30 transisi': 2,
     '31-40 masa matang': 3,
     '41-50 dewasa': 4,
