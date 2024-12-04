@@ -43,13 +43,13 @@ def test_knn_model(test_image_path, data_dir):
         label_name = [name for name, value in label_mapping.items() if value == label][0]
         top_matches.append((label_name, distances[0][i]))
 
-    # Print the top-3 matches first
+    # Display the test image with predicted label
+    display_test_image(test_image, top_matches[0][0])
+
+    # Print the top-3 matches
     print("\nTop-3 Matches:")
     for i, (label_name, distance) in enumerate(top_matches):
         print(f"Match {i + 1}: {label_name}, Distance: {distance:.2f}")
-
-    # Display the test image with predicted label
-    display_test_image(test_image, top_matches[0][0])
 
 def display_test_image(test_image, predicted_label):
     """
@@ -64,6 +64,6 @@ def display_test_image(test_image, predicted_label):
 
 # Example usage
 data_dir = 'D:/Be/BE/ML/uploads/age'  # Path to the dataset directory
-test_image_path = r'D:\Be\BE\ML\uploads\images\ibuk1.jpeg'  # Path to the test image
+test_image_path = r'D:\Be\BE\ML\uploads\images\arka.jpg'  # Path to the test image
 
 test_knn_model(test_image_path, data_dir)
