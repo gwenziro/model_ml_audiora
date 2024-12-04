@@ -69,3 +69,4 @@ data_dir = 'D:/Be/BE/ML/uploads/age'  # Path to the dataset directory
 test_image_path = r'D:\Be\BE\ML\uploads\images\jeno.jpg'  # Path to the test image
 
 test_knn_model(test_image_path, data_dir)
+
