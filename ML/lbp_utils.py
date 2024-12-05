@@ -1,41 +1,38 @@
 import cv2
 import numpy as np
-from skimage.feature import hog
+from skimage.feature import local_binary_pattern
 
-def extract_lbp_hog_features(image):
+def extract_lbp_features(image):
     """
-    Extract combined LBP and HOG features from an image.
+    Ekstrak fitur LBP dari wajah pada gambar. Jika wajah tidak terdeteksi,
+    gunakan seluruh gambar.
     """
-    # Resize image to a fixed size (e.g., 100x100)
-    fixed_size = (100, 100)
-    image_resized = cv2.resize(image, fixed_size, interpolation=cv2.INTER_AREA)
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-    # Convert to grayscale
-    gray_image = cv2.cvtColor(image_resized, cv2.COLOR_BGR2GRAY)
+    if len(faces) > 0:
+        # Langkah 1: Fokus pada wajah (hilangkan background, rambut, dll.)
+        x, y, w, h = faces[0]
+        face_region = gray_image[y:y+h, x:x+w]
+    else:
+        face_region = gray_image
 
-    # Extract LBP features
-    lbp_image = np.zeros_like(gray_image, dtype=np.uint8)
-    for i in range(1, gray_image.shape[0] - 1):
-        for j in range(1, gray_image.shape[1] - 1):
-            center = gray_image[i, j]
-            binary_string = ''.join(['1' if gray_image[i + x, j + y] >= center else '0'
-                                     for x, y in [(-1, -1), (-1, 0), (-1, 1), (0, 1),
-                                                  (1, 1), (1, 0), (1, -1), (0, -1)]])
-            lbp_image[i, j] = int(binary_string, 2)
+    # Resize untuk dimensi yang konsisten
+    face_resized = cv2.resize(face_region, (100, 100), interpolation=cv2.INTER_AREA)
 
-    lbp_features = lbp_image.flatten()
+    # Ekstrak fitur LBP
+    lbp = local_binary_pattern(face_resized, P=8, R=1, method='uniform')
+    lbp_hist, _ = np.histogram(lbp.ravel(), bins=np.arange(0, 10), density=True)
 
-    # Extract HOG features
-    hog_features = hog(
-        gray_image,
-        orientations=9,
-        pixels_per_cell=(8, 8),
-        cells_per_block=(2, 2),
-        block_norm='L2-Hys',
-        feature_vector=True
-    )
+    return lbp_hist
 
-    # Combine LBP and HOG features
-    combined_features = np.concatenate((lbp_features, hog_features))
-
-    return combined_features
+def extract_hog_features(image):
+    """
+    Ekstrak fitur HOG dari wajah pada gambar.
+    """
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    hog = cv2.HOGDescriptor()
+    resized_image = cv2.resize(gray_image, (64, 128))
+    hog_features = hog.compute(resized_image)
+    return hog_features.flatten()
