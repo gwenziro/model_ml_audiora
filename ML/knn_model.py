@@ -44,7 +44,9 @@ def prepare_data(data_dir):
                     hog_features = extract_hog_features(image)
 
                     # Gabungkan fitur dengan bobot
-                    combined_features = np.hstack((lbp_features * 0.3, hog_features * 0.7))
+                    hog_weight = 0.3
+                    lbp_weight = 0.7
+                    combined_features = np.hstack((lbp_features * lbp_weight, hog_features * hog_weight))
                     features.append(combined_features)
                     labels.append(label)
 
