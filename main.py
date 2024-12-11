@@ -5,7 +5,7 @@ from fastapi import HTTPException, Depends, File, UploadFile, FastAPI
 from sqlalchemy.orm import Session
 from src.model.database import get_db
 from src.model.user import User, Playlist, UserHistory, RoleEnum
-from ML.lbp_utils import predict_age_group
+from ML.test_knn_model import predict_age
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
@@ -31,7 +31,7 @@ async def recommend_playlist_route(user_id: str, file: UploadFile = File(...), d
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
-def recommend_playlist(user_id: str, db: Session = Depends(get_db), image_path: str):
+def recommend_playlist(user_id: str, db: Session, image_path: str):
     # Fetch user
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -42,7 +42,7 @@ def recommend_playlist(user_id: str, db: Session = Depends(get_db), image_path: 
 
     # Predict age group using LBP
     try:
-        predicted_age_group = predict_age_group(image_path)
+        predicted_age_group = predict_age(image_path)
     except Exception as e:
         logging.error(f"Age prediction failed for {image_path}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Age prediction failed: {str(e)}")
